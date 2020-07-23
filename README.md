@@ -1,11 +1,13 @@
 # galaxy_camera
 ROS wrapper for the galaxy camera made by Daheng Imaging.
 
+Forked from QiayuanLiao/git@github.com:QiayuanLiao/galaxy_camera.git
+
 Dependencies:
 - ROS Melodic
 - gxiapi
 
-ONLY TESTED ON MER-139!!!
+ONLY TESTED ON MER2-302!!!
 
 # Getting started 
 ## Install dependencies
@@ -31,11 +33,8 @@ roslaunch galaxy_camera MER-139.launch
 ```
 check the image on rqt_image_view.
 
-2. Adjust the params by rqt_reconfigure:
-```
-rosrun rqt_reconfigure rqt_reconfigure
-```
-![image.png](https://i.loli.net/2020/07/01/IKDNkbQY2vJ3Tlx.png)
+2. Adjust the params in launch file.
+
 
 3. Calibrate:
 ```

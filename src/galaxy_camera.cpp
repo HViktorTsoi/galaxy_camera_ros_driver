@@ -15,6 +15,7 @@ namespace galaxy_camera {
                                uint32_t step,
                                uint32_t offset_x, uint32_t offset_y,
                                const std::string &encoding) {
+        nh_ = nh;
         pub_ = pub;
         info_ = std::move(info);
         image_.height = height;
@@ -61,13 +62,11 @@ namespace galaxy_camera {
                                   GalaxyCamera::onFrameCB);
         GXStreamOn(dev_handle_);
         ROS_INFO("Stream On.");
-        GXSetEnum(dev_handle_, GX_ENUM_BALANCE_WHITE_AUTO, GX_BALANCE_WHITE_AUTO_CONTINUOUS);
 
-        ros::NodeHandle p_nh(nh, "camera");
-        srv_ = new dynamic_reconfigure::Server<CameraConfig>(p_nh);
-        dynamic_reconfigure::Server<CameraConfig>::CallbackType
-                cb = boost::bind(&GalaxyCamera::reconfigCB, this, _1, _2);
-        srv_->setCallback(cb);
+        // write config to camera
+        ROS_INFO("Writing parameters to camera...");
+        writeConfig();
+        ROS_INFO("Done.");
     }
 
     void GalaxyCamera::onFrameCB(GX_FRAME_CALLBACK_PARAM *pFrame) {
@@ -84,42 +83,72 @@ namespace galaxy_camera {
         }
     }
 
-    void GalaxyCamera::reconfigCB(CameraConfig &config, uint32_t level) {
-        (void) level;
+
+    void GalaxyCamera::writeConfig() {
+        double frame_rate,
+                exposure_max, exposure_min, exposure_value,
+                gain_min, gain_max, gain_value,
+                black_value, white_value;
+        bool exposure_auto, gain_auto, black_auto, white_auto;
+        int white_selector;
+
+        // get parameters
+        nh_.param("frame_rate", frame_rate, 30.0);
+
+        nh_.param("exposure_auto", exposure_auto, false);
+        nh_.param("exposure_min", exposure_min, 20.0);
+        nh_.param("exposure_max", exposure_max, 100000.0);
+        nh_.param("exposure_value", exposure_value, 50000.0);
+
+        nh_.param("gain_auto", gain_auto, false);
+        nh_.param("gain_min", gain_min, 0.0);
+        nh_.param("gain_max", gain_max, 24.0);
+        nh_.param("gain_value", gain_value, 0.0);
+
+        nh_.param("black_auto", black_auto, false);
+        nh_.param("black_value", black_value, 2.0);
+
+        nh_.param("white_auto", white_auto, false);
+        nh_.param("white_selector", white_selector, 0);
+        nh_.param("white_value", white_value, 1.0);
+
+
+        // write to camera
+        // Frame Rate
+        GXSetEnum(dev_handle_, GX_ENUM_ACQUISITION_FRAME_RATE_MODE,
+                  GX_ACQUISITION_FRAME_RATE_MODE_ON);
+        GXSetFloat(dev_handle_, GX_FLOAT_ACQUISITION_FRAME_RATE, frame_rate);
+
         // Exposure
-        if (config.exposure_auto) {
-            double value;
-            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_EXPOSURE_TIME_MAX, config.exposure_max);
-            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_EXPOSURE_TIME_MIN, config.exposure_min);
+        if (exposure_auto) {
+            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_EXPOSURE_TIME_MAX, exposure_max);
+            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_EXPOSURE_TIME_MIN, exposure_min);
             GXSetEnum(dev_handle_, GX_ENUM_EXPOSURE_AUTO, GX_EXPOSURE_AUTO_CONTINUOUS);
-            GXGetFloat(dev_handle_, GX_FLOAT_EXPOSURE_TIME, &value);
-            config.exposure_value = value;
+
         } else {
             GXSetEnum(dev_handle_, GX_ENUM_EXPOSURE_AUTO, GX_EXPOSURE_AUTO_OFF);
-            GXSetFloat(dev_handle_, GX_FLOAT_EXPOSURE_TIME, config.exposure_value);
+            GXSetFloat(dev_handle_, GX_FLOAT_EXPOSURE_TIME, exposure_value);
         }
 
         // Gain
-        if (config.gain_auto) {
-            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_GAIN_MIN, config.gain_min);
-            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_GAIN_MAX, config.gain_max);
+        if (gain_auto) {
+            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_GAIN_MIN, gain_min);
+            GXSetFloat(dev_handle_, GX_FLOAT_AUTO_GAIN_MAX, gain_max);
             GXSetEnum(dev_handle_, GX_ENUM_GAIN_AUTO, GX_GAIN_AUTO_CONTINUOUS);
-            GXGetFloat(dev_handle_, GX_FLOAT_GAIN, &config.gain_value);
         } else {
             GXSetEnum(dev_handle_, GX_ENUM_GAIN_AUTO, GX_GAIN_AUTO_OFF);
-            GXSetFloat(dev_handle_, GX_FLOAT_GAIN, config.gain_value);
+            GXSetFloat(dev_handle_, GX_FLOAT_GAIN, gain_value);
         }
 
         // Black level
-        if (config.black_auto) {
+        if (black_auto) {
             GXSetEnum(dev_handle_, GX_ENUM_BLACKLEVEL_AUTO, GX_BLACKLEVEL_AUTO_CONTINUOUS);
-            GXGetFloat(dev_handle_, GX_FLOAT_BLACKLEVEL, &config.black_value);
         } else {
             GXSetEnum(dev_handle_, GX_ENUM_BLACKLEVEL_AUTO, GX_BLACKLEVEL_AUTO_OFF);
-            GXSetFloat(dev_handle_, GX_FLOAT_BLACKLEVEL, config.black_value);
+            GXSetFloat(dev_handle_, GX_FLOAT_BLACKLEVEL, black_value);
         }
         // Balance White
-        switch (config.white_selector) {
+        switch (white_selector) {
             case 0:
                 GXSetEnum(dev_handle_, GX_ENUM_BALANCE_RATIO_SELECTOR, GX_BALANCE_RATIO_SELECTOR_RED);
                 break;
@@ -130,16 +159,11 @@ namespace galaxy_camera {
                 GXSetEnum(dev_handle_, GX_ENUM_BALANCE_RATIO_SELECTOR, GX_BALANCE_RATIO_SELECTOR_BLUE);
                 break;
         }
-        if (last_channel_ != config.white_selector) {
-            GXGetFloat(dev_handle_, GX_FLOAT_BALANCE_RATIO, &config.white_value);
-            last_channel_ = config.white_selector;
-        }
-        if (config.white_auto) {
+        if (white_auto) {
             GXSetEnum(dev_handle_, GX_ENUM_BALANCE_WHITE_AUTO, GX_BALANCE_WHITE_AUTO_CONTINUOUS);
-            GXGetFloat(dev_handle_, GX_FLOAT_BALANCE_RATIO, &config.white_value);
         } else {
             GXSetEnum(dev_handle_, GX_ENUM_BALANCE_WHITE_AUTO, GX_BALANCE_WHITE_AUTO_OFF);
-            GXSetFloat(dev_handle_, GX_FLOAT_BALANCE_RATIO, config.white_value);
+            GXSetFloat(dev_handle_, GX_FLOAT_BALANCE_RATIO, white_value);
         }
     }
 

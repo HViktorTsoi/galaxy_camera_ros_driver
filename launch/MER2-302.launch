@@ -1,0 +1,30 @@
+<launch>
+    <node name="galaxy_camera" pkg="galaxy_camera" type="galaxy_camera" output="screen">
+        <param name="image_width" value="2048"/>
+        <param name="image_height" value="1536"/>
+        <param name="pixel_format" value="bgr8"/>
+        <param name="camera_info_url" value=""/>
+        <param name="camera_frame_id" value="camera"/>
+
+        <!-- Exposure -->
+        <param name="exposure_auto" value="false"/>
+        <param name="exposure_value" value="20000"/>
+        <param name="exposure_min" value="20"/>
+        <param name="exposure_max" value="1000000"/>
+
+        <!-- Gain -->
+        <param name="gain_auto" value="true"/>
+        <param name="gain_value" value="2"/>
+        <param name="gain_min" value="0"/>
+        <param name="gain_max" value="24"/>
+
+        <!-- Frame rate -->
+        <param name="frame_rate" value="15"/>
+
+        <!-- White balance -->
+        <param name="white_auto" value="true"/>
+        <!-- 0, 1, 2 for red, green, blue-->
+        <param name="white_selector" value="0"/>
+        <param name="white_value" value="1"/>
+    </node>
+</launch>

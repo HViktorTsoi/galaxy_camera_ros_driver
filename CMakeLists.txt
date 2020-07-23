@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.5)
 project(galaxy_camera)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -6,14 +6,10 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(catkin REQUIRED COMPONENTS
     roscpp
     message_generation
-    dynamic_reconfigure
     image_transport
     camera_info_manager
     )
 
-generate_dynamic_reconfigure_options(
-    cfg/camera.cfg
-)
 catkin_package(
 )
 
